@@ -1,0 +1,3 @@
+MONOCLE_PUBLIC_URL={{ monocle_public_url|default('localhost') }}:8080
+MONOCLE_VERSION=latest
+MONOCLE_TITLE={{ monocle_title|default('Monocle') }}

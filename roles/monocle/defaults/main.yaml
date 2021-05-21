@@ -1,0 +1,4 @@
+monocle_install_dir: production-monocle
+mode: img
+monocle_config_url: "https://nowhere"
+local_sed_script: "{{ ansible_user_dir }}/subs-api-key.sh"

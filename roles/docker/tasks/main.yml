@@ -1,0 +1,32 @@
+---
+- name: Install docker-ce repository
+  command: dnf config-manager --add-repo={{ docker_repo }}
+  become: true
+
+- name: Install docker-ce
+  command: dnf -y install docker-ce docker-ce-cli containerd.io
+  become: true
+
+- name: Make sure a service is running
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
+  become: true
+
+- name: Add current user in the docker group
+  command: usermod -aG docker {{ ansible_user_id }}
+  become: true
+
+- name: Fetch docker-compose
+  get_url:
+    url: "{{ docker_compose_url }}"
+    dest: /usr/bin/docker-compose
+    checksum: "sha256:{{ docker_compose_hash }}"
+    mode: "0755"
+  become: true
+
+# If this does not work due to "Error response from daemon: toomanyrequests"
+# Then you must login to dockerhub with docker login command.
+- name: Attempt to run hello-world
+  command: docker run hello-world

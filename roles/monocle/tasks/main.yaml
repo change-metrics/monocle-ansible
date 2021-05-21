@@ -1,0 +1,63 @@
+---
+- name: Install dependencies
+  dnf:
+    name: git
+  become: true
+
+- name: Set installation directory
+  set_fact:
+    workdir: "{{ ansible_user_dir }}/{{ monocle_install_dir }}"
+
+- name: Ensure installation directory
+  file:
+    path: "{{ ansible_user_dir }}/{{ item }}"
+    state: directory
+  loop:
+    - "{{ workdir }}"
+
+- name: Checkout monocle source
+  git:
+    repo: https://github.com/change-metrics/monocle
+    dest: "{{ workdir }}"
+
+- name: Set compose version
+  file:
+    src: docker-compose.yml.{{ mode }}
+    dest: "{{ workdir }}/docker-compose.yml"
+    force: yes
+    state: link
+
+- name: Set vm.max_map_count
+  command: sysctl -w vm.max_map_count=262144
+  become: true
+
+- name: Ensure runtime directories exist
+  file:
+    path: "{{ workdir }}/{{ item }}"
+    state: directory
+  loop:
+    - etc
+
+- name: Fetch monocle configuration file
+  get_url:
+    url: "{{ monocle_config_url }}"
+    dest: "{{ workdir }}/etc/config.yaml"
+    validate_certs: false
+
+- name: Run local script to sed api keys
+  shell: test -f {{ local_sed_script }} && {{ local_sed_script }} {{ workdir }}/etc/config.yaml || true
+
+- name: Install .env file
+  template:
+    src: env
+    dest: "{{ workdir }}/.env"
+
+- name: Run docker-compose pull
+  shell: docker-compose pull
+  args:
+    chdir: "{{ workdir }}"
+
+- name: Run docker-compose up
+  shell: docker-compose up -d
+  args:
+    chdir: "{{ workdir }}"

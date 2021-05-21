@@ -1,0 +1,43 @@
+---
+- name: Install dependencies
+  dnf:
+    name: "ghc,cabal-install,zlib-devel,git,cronie"
+  become: true
+
+- name: Set installation directory
+  set_fact:
+    workdir: "{{ ansible_user_dir }}/{{ lentille_install_dir }}"
+
+- name: Ensure installation directory
+  file:
+    path: "{{ ansible_user_dir }}/{{ item }}"
+    state: directory
+  loop:
+    - "{{ workdir }}"
+
+- name: Checkout lentille source
+  git:
+    repo: https://github.com/change-metrics/lentille
+    dest: "{{ workdir }}"
+
+- name: Run cabal update
+  command: cabal update
+
+- name: Run lentille-bugzilla build
+  command: cabal build lentille-bugzilla
+  args:
+    chdir: "{{ workdir }}"
+
+- name: Copy cron command for BZ crawler
+  template:
+    src: run-bz-crawler.sh
+    dest: "{{ ansible_user_dir}}/.local/bin/run-bz-crawler_{{ item.name }}.sh"
+    mode: 0755
+  loop: "{{ bz_crawlers }}"
+
+- name: Install cron for BZ crawler
+  cron:
+    name: "{{ item.name }}"
+    special_time: hourly
+    job: "{{ ansible_user_dir}}/.local/bin/run-bz-crawler_{{ item.name }}.sh"
+  loop: "{{ bz_crawlers }}"
