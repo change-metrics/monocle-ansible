@@ -1,0 +1,25 @@
+---
+- hosts: all
+  vars:
+    workdir: "{{ ansible_user_dir }}/{{ monocle_install_dir }}"
+    monocle_dhall: "https://raw.githubusercontent.com/change-metrics/dhall-monocle/1412046eba8ba9716769847ccc65e83727ff3bb0/package.dhall sha256:5c34fd7dd30a9baf7f783414c3f47549b606f42f6f2ade0a502d74d4c0cb9439"
+  tasks:
+    - name: Update the configuration
+      shell: |
+        source ~/api_keys.env
+        echo {{ monocle_config_url }} | dhall-to-yaml --output {{ workdir }}/etc/config.yaml
+        echo {{ monocle_config_url }} | dhall --output {{ workdir }}/etc/config.dhall
+
+    - name: Restart services
+      shell: docker-compose restart
+      args:
+        chdir: "{{ workdir }}"
+
+    - name: Update identities
+      shell: |
+        TENANTS=$(echo "({{ monocle_dhall }}).Utils.getIndexNamesList {{ monocle_config_url }}" | dhall text)
+        for tenant in ${TENANTS}; do
+          docker-compose run --rm --no-deps crawler /usr/local/bin/monocle --elastic-conn elastic:9200 dbmanage --index ${tenant} --config /etc/monocle/config.yaml --update-idents
+        done
+      args:
+        chdir: "{{ workdir }}"
