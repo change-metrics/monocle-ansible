@@ -1,7 +1,10 @@
 ---
 - name: Install dependencies
   dnf:
-    name: git
+    name:
+      - git
+      - dhall
+      - dhall-json
   become: true
 
 - name: Set installation directory
